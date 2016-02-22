@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
@@ -17,6 +18,11 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 
 
 
@@ -28,7 +34,7 @@ public class test {
 	
     public static void main(String args[])  throws  ClientProtocolException, IOException, URISyntaxException {
     	String song ="海阔天空";
-    	String singer = "";
+    	String singer = "beyond";
     	String searchKey=""; 
     	if(singer=="" && song!=""){
     		searchKey = URLEncoder.encode(song, "utf-8");
@@ -42,8 +48,28 @@ public class test {
 		
 		Document doc = null;
 		doc = getHtmlContent(searchUrl);
-		write(doc.toString());
-		
+		//String s = parseDoc(doc);		
+		Elements scripts = doc.getElementsByTag("script");
+    	Element script = scripts.get(4);
+    	String[] vars = script.html().split("var");
+    	String v8SongData = vars[4].trim().split(" = ")[1];   	
+    	JSONObject songsObject = JSONObject.fromObject(v8SongData);
+    	JSONArray songsArr = songsObject.getJSONArray("list");
+    	System.out.println(songsArr);    	
+    	JSONObject songObj = (JSONObject) songsArr.get(0);
+    	System.out.println(songObj);
+    	String songname = (String) songObj.get("songname");
+    	String songmid = (String) songObj.get("songmid");
+    	String songid = songObj.get("songid").toString();
+    	String songurl = (String) songObj.get("songurl");
+		    	
+		Document songDetailDoc = getSongInfo(songid);
+		write(songDetailDoc.toString());
+		Elements songDs = songDetailDoc.getElementsByClass("song_info");
+		String singerName = songDetailDoc.getElementsByClass("singer_name").first().getElementsByTag("a").first().text();
+		String singerLang = songDetailDoc.getElementsByClass("singer_lang").first().parent().ownText();
+		String album = songDetailDoc.getElementsByClass("album_name").first().getElementsByTag("a").first().ownText();
+		String issueDate = songDetailDoc.getElementsByClass("issue_date").first().text().split("：")[1].trim();
     	CloseableHttpClient httpClient  = HttpClients.createDefault();
 		// 设置GET请求参数，URL一定要以"http://"开头
 		HttpGet getReq = new HttpGet(searchUrl);
@@ -68,6 +94,35 @@ public class test {
 		rep.close();
 		httpClient.close();
 	}
+    public static Document getSongInfo(String id) throws UnsupportedEncodingException{ 
+    	String searchUrl = "http://i.y.qq.com/s.plcloud/fcgi-bin/fcg_yqq_song_detail_info_cp.fcg?songid="+id+"&play=0";
+		Document doc = null;
+		doc = getHtmlContent(searchUrl);
+		return doc;
+    }
+    public static String parseDoc(Document doc){
+    	Elements scripts = doc.getElementsByTag("script");
+/*    	 for (Element script: scripts ) {     
+    	     String scriptText = script.text(); 
+    	}*/
+    	Element script = scripts.get(4);
+    	String[] vars = script.html().split("var");
+    	String v8SongData = vars[4].trim().split(" = ")[1];
+    	
+    	JSONObject songsObject = JSONObject.fromObject(v8SongData);
+    	JSONArray songsArr = songsObject.getJSONArray("list");
+    	System.out.println(songsArr);
+    	
+    	JSONObject songObj = (JSONObject) songsArr.get(0);
+    	System.out.println(songObj);
+    	String songname = (String) songObj.get("songname");
+    	String songmid = (String) songObj.get("songmid");
+    	String songid = songObj.get("songid").toString();
+    	String songurl = (String) songObj.get("songurl");
+    	
+
+		return songid;
+    }
     public static String parseHtml(String html){
     	Document doc = Jsoup.parse(html);
     	
